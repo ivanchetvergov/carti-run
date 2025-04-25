@@ -1,37 +1,37 @@
 #pragma once
+
 #include <SFML/Graphics.hpp>
-#include <memory>
 #include <vector>
+#include <memory>
+#include <string>
 
-struct Tile {
-    std::unique_ptr<sf::Sprite> tileSprite;
-    bool isSolid = false;
-
-    Tile() = default;
-
-    // запрет копирования
-    Tile(const Tile&) = delete;
-    Tile& operator=(const Tile&) = delete;
-
-    // разрешение перемещения
-    Tile(Tile&&) noexcept = default;
-    Tile& operator=(Tile&&) noexcept = default;
+// Класс Tile, представляющий отдельную плитку
+class Tile {
+public:
+    std::unique_ptr<sf::Sprite> tileSprite; // Спрайт плитки
+    bool isSolid = false;                   // Является ли плитка непроходимой
 };
 
+// Класс Level, отвечающий за загрузку и отрисовку уровня
 class Level {
-public:
-    Level(const std::string& texturePath, int width, int height);
-
-    void draw(sf::RenderWindow& window);
-    bool isBlockedAt(float x, float y) const; // проверка на коллизию
-    void loadLevel(const std::vector<std::string>& data);
-
-
 private:
-    std::unique_ptr<sf::Texture> tileTexture;
-    std::unique_ptr<sf::Sprite> tileSprite;
-    int width, height;
-    int tileSize = 32;
+    std::vector<std::vector<Tile>> tiles;         // Двумерный массив плиток
+    int width = 0, height = 0;                      // Размеры уровня
+    float tileSize = 64.0f;                         // Размер плитки (например, 32x32 пикселя)
+    std::shared_ptr<sf::Texture> wallTexture;       // Текстура стены
+    std::shared_ptr<sf::Texture> backgroundTexture; // Текстура фона
 
-    std::vector<std::vector<Tile>> tiles; // 1 — блок, 0 — пусто
+public:
+    // Сеттеры
+    void setWallTexture(const std::shared_ptr<sf::Texture>& texture);
+    void setBackgroundTexture(const std::shared_ptr<sf::Texture>& texture);
+    void setDimensions(int width, int height);
+
+    // геттеры
+    float getTileSize() const {return tileSize; }    
+
+    void loadLevel(const std::vector<std::string>& data); // загрузка из массива
+    void draw(sf::RenderWindow& window); // отрисовка
+    bool isTileSolid(int x, int y) const; // проверка стенки
+
 };

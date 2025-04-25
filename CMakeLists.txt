@@ -26,8 +26,8 @@ file(GLOB SOURCES
 # Создание исполняемого файла
 add_executable(main ${SOURCES})
 
-# Подключение библиотек SFML
-target_link_libraries(main sfml-graphics sfml-window sfml-system)
+# Подключение библиотек SFML (добавляем sfml-audio, если требуется)
+target_link_libraries(main sfml-graphics sfml-window sfml-system sfml-audio)
 
 # Настройка директории для вывода
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
