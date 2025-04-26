@@ -38,9 +38,10 @@ int main() {
         "1001100000000001",
         "1000000000000001",
         "1000000000000001",
+        "1111111111111001",
+        "1111111111111001",
         "1111111111111111"
     };
-    
 
     level.loadLevel(levelData); // Загружаем данные уровня
 
@@ -48,9 +49,9 @@ int main() {
     if (!backgroundMusic.openFromFile("../assets/differentDay.mp3")) {
         throw std::runtime_error("Failed to load  music");
     }
+
     
-    
-    backgroundMusic.setVolume(50.f); // Устанавливаем громкость (0-100)
+    backgroundMusic.setVolume(0.8f); // Устанавливаем громкость (0-100)
     backgroundMusic.play();          // Запускаем музыку
 
     sf::Clock clock;
@@ -64,7 +65,7 @@ int main() {
 
         float deltaTime = clock.restart().asSeconds();
 
-        player.handleInput(deltaTime, level);
+        player.update(deltaTime, level);
 
         window.clear(sf::Color::Black);
         level.draw(window);
