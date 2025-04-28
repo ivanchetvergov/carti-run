@@ -20,11 +20,17 @@ private:
     float tileSize = 64.0f;                         // Размер плитки (например, 32x32 пикселя)
     std::shared_ptr<sf::Texture> wallTexture;       // Текстура стены
     std::shared_ptr<sf::Texture> backgroundTexture; // Текстура фона
+    std::shared_ptr<sf::Texture> cloudsTexture; // Текстура фона
+    std::shared_ptr<sf::Texture> emptyTexture; // Текстура фона
+
+
 
 public:
     // Сеттеры
     void setWallTexture(const std::shared_ptr<sf::Texture>& texture);
     void setBackgroundTexture(const std::shared_ptr<sf::Texture>& texture);
+    void setCloudTexture(const std::shared_ptr<sf::Texture>& texture);
+    void setEmptyTexture(const std::shared_ptr<sf::Texture>& texture);
     void setDimensions(int width, int height);
 
     // геттеры

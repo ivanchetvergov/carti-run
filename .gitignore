@@ -1,2 +1,17 @@
-/build
+# Игнорируем файлы и каталоги от IDE  
+.idea/  
+*.iml  
 
+# Игнорирование временных файлов и каталогов  
+*.DS_Store  
+cmake-build-debug/  
+CMakeFiles/  
+CMakeCache.txt  
+*.ninja  
+*.o  
+'*.log'  
+*.png  
+
+# Игнорирование собранных файлов и отчетов  
+/bin/  
+/obj/

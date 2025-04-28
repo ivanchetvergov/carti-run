@@ -10,46 +10,62 @@ void Level::setBackgroundTexture(const std::shared_ptr<sf::Texture>& texture) {
     backgroundTexture = texture; // assign background texture
 }
 
+void Level::setCloudTexture(const std::shared_ptr<sf::Texture>& texture) {
+    cloudsTexture = texture; // assign wall texture
+}
+
+void Level::setEmptyTexture(const std::shared_ptr<sf::Texture>& texture) {
+    emptyTexture = texture; // assign wall texture
+}
+
 /* Load the level from an array of strings. */
 // Each string represents a row; '1' is a wall, '0' is a background.
 void Level::loadLevel(const std::vector<std::string>& data) {
-    height = data.size();                 // set level height
-    width = data[0].size();                 // set level width
-    tiles.clear();                        // clear any existing tiles
-    tiles.resize(height);                 // resize tiles container
+    height = data.size();                 // Устанавливаем высоту уровня
+    width = data[0].size();               // Устанавливаем ширину уровня
+    tiles.clear();                        // Очищаем текущие данные плиток
+    tiles.resize(height);                 // Изменяем размер массива плиток
 
     for (int y = 0; y < height; ++y) {
-        tiles[y].reserve(width);          // reserve space for row
+        tiles[y].reserve(width);          // Резервируем место для строк
         for (int x = 0; x < width; ++x) {
             Tile tile;
             sf::Vector2f pos(static_cast<float>(x * tileSize), static_cast<float>(y * tileSize));
 
-            // Set background texture by default and position it.
-            tile.tileSprite = std::make_unique<sf::Sprite>(*backgroundTexture);
-            tile.tileSprite->setPosition(pos); // Устанавливаем позицию плитки
-            tile.tileSprite->setScale(sf::Vector2f(
-                tileSize / backgroundTexture->getSize().x,
-                tileSize / backgroundTexture->getSize().y
-            )); // Масштабируем текстуру
-            
-            // For a wall ('1'), replace background with wall texture and mark as solid.
-            if (data[y][x] == '1') {
+            if (data[y][x] == '0') {
+                // Устанавливаем фон и позицию
+                tile.tileSprite = std::make_unique<sf::Sprite>(*backgroundTexture);
+                tile.tileSprite->setPosition(pos);
+                tile.tileSprite->setScale(sf::Vector2f(
+                    tileSize / backgroundTexture->getSize().x,
+                    tileSize / backgroundTexture->getSize().y
+                ));
+                tile.isSolid = false; // Фон пропускаем
+            } else if (data[y][x] == '1') {
+                // Устанавливаем стену и позицию
                 tile.tileSprite = std::make_unique<sf::Sprite>(*wallTexture);
-                tile.tileSprite->setPosition(pos); // Устанавливаем позицию плитки
+                tile.tileSprite->setPosition(pos);
                 tile.tileSprite->setScale(sf::Vector2f(
                     tileSize / wallTexture->getSize().x,
                     tileSize / wallTexture->getSize().y
-                )); // Масштабируем текстуру
-                
-                tile.isSolid = true;               // mark tile as impassable
+                ));
+                tile.isSolid = true; // Стена непроходимая
             } else {
-                tile.isSolid = false;              // background tile is passable
+                // Устанавливаем стену и позицию
+                tile.tileSprite = std::make_unique<sf::Sprite>(*emptyTexture);
+                tile.tileSprite->setPosition(pos);
+                tile.tileSprite->setScale(sf::Vector2f(
+                    tileSize / wallTexture->getSize().x,
+                    tileSize / wallTexture->getSize().y
+                ));
+                tile.isSolid = false; // Стена непроходимая
             }
-            
-            tiles[y].emplace_back(std::move(tile)); // add the tile to the row
+
+            tiles[y].emplace_back(std::move(tile)); // Добавляем плитку в строку
         }
     }
 }
+
 
 /* Render the level onto the window. */
 void Level::draw(sf::RenderWindow& window) {

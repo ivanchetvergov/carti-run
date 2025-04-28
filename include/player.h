@@ -21,22 +21,36 @@ public:
     void update(float deltaTime, const Level& level);
     void draw(sf::RenderWindow& window);
 
+    sf::Vector2f getPosition() const { return sprite->getPosition(); }
+
+
 private:
     // Графические данные
     sf::Texture texture;
     std::unique_ptr<sf::Sprite> sprite;
 
+    bool isFacingRight = true;
+
     // Основные параметры движения
-    float speed = 400.0f;      
-    float gravity = 2800.f;            
-    float jumpForce = -2280.f; 
+    float speed = 520.0f;
+    float gravity = 2800.f;
+    float jumpForce = -2280.f;
 
     // Текущее состояние физики
-    float verticalSpeed = 10.f;  
-    bool isJumping = false;          
+    float verticalSpeed = 1000.f;
+    bool isJumping = false;
     bool isOnGround = false;
 
-    // Модули, отвечающие за интеграцию физики и проверку столкновений
+    // Анимация
+    sf::IntRect currentFrame;                // Текущий кадр анимации
+    float animationTimer = 0.f;              // Таймер для смены кадров
+    float frameDuration = 0.1f;              // Длительность одного кадра
+    int currentFrameIndex = 0;               // Индекс текущего кадра
+    int numFrames = 8;                       // Количество кадров анимации
+    const int frameWidth = 23;               // Ширина одного кадра (раскадровка)
+    const int frameHeight = 35;              // Высота одного кадра (раскадровка)
+
+    // Модули физики и столкновений
     std::unique_ptr<PhysicsModule> physicsModule;
     std::unique_ptr<CollisionModule> collisionModule;
 };
