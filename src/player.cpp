@@ -1,135 +1,113 @@
 #include "player.h"
-#include "level.h"           // Уровень, с методами getTileSize() и isTileSolid(x, y)
+#include "level.h"
 
 #include <iostream>
 
-Player::Player() {
-}
+Player::Player() {}
 
 Player::Player(const std::string &texturePath) {
     if (!texture.loadFromFile(texturePath)) {
-        std::cerr << "Failed to load player texture from " << texturePath << "\n";
+        std::cerr << "failed to load player texture from " << texturePath << "\n";
     }
     sprite = std::make_unique<sf::Sprite>(texture);
 
-    // Устанавливаем первый кадр (используем позицию и размер)
-    sf::Vector2<int> position(0, 0);
-    sf::Vector2<int> size(23, 35);
-    currentFrame = sf::IntRect(position, size); // Размер одного кадра
+    // задаём начальный кадр (позиция и размер)
+    currentFrame = sf::IntRect({0, 0}, {frameWidth, frameHeight});
     sprite->setTextureRect(currentFrame);
 
-   // Масштабируем каждый кадр до целевого размера (например, 64x64)
-    float targetWidth = 64.f; // Желаемая ширина
-    float targetHeight = 64.f; // Желаемая высота
-    float scaleFactorX = targetWidth / 23; // Масштабируем до 64 пикселей по ширине
-    float scaleFactorY = targetHeight / 35; // Масштабируеаум до 64 пикселей по высоте
-    sprite->setScale(sf::Vector2f(scaleFactorX , scaleFactorY));
-    sprite->setPosition({100.f, 100.f}); // Начальная позиция игрока
-    sf::Vector2f origin(0, 0);
-    sprite->setOrigin(origin);
+    // масштабирование под 64x64
+    float scaleFactorX = 64.f / frameWidth;
+    float scaleFactorY = 64.f / frameHeight;
+    sprite->setScale(sf::Vector2f(scaleFactorX, scaleFactorY));
 
-    // Инициализация модулей физики и столкновений
-    physicsModule = std::make_unique<PhysicsModule>(2800.f, -1080.f);
+    // origin по центру снизу
+    sprite->setOrigin(sf::Vector2f(frameWidth / 2.f, 0));
+
+    // начальная позиция
+    sprite->setPosition(sf::Vector2f(100.f, 100.f));
+
+    // модули
+    physicsModule = std::make_unique<PhysicsModule>(gravity, jumpForce);
     collisionModule = std::make_unique<CollisionModule>();
 
-    // Настройка анимации
-    frameDuration = 0.1f;  // Длительность одного кадра (100 мс)
-    currentFrameIndex = 0; // Начинаем с первого кадра
-    numFrames = 8;         // Всего 8 кадров в раскадровке
+    // параметры анимации
+    frameDuration = 0.1f;
+    currentFrameIndex = 0;
+    walkFrameCount = 8;
 }
-
 
 void Player::update(float deltaTime, const Level &level) {
     InputManager inputManager;
     float horizontalInput = inputManager.getHorizontalInput();
 
-    // Если клавиша прыжка нажата и игрок на земле, запускаем прыжок
     if (inputManager.isJumpPressed() && isOnGround) {
         verticalSpeed = physicsModule->getJumpForce();
         isJumping = true;
         isOnGround = false;
     }
 
-    // Получаем текущую позицию и размеры спрайта
     sf::Vector2f pos = sprite->getPosition();
-    sf::Vector2u texSize = texture.getSize();
     sf::Vector2f scale = sprite->getScale();
-    sf::Vector2f spriteSize(texSize.x * std::abs(scale.x), texSize.y * std::abs(scale.y));
+    sf::Vector2f spriteSize(frameWidth * std::abs(scale.x), frameHeight * std::abs(scale.y));
 
-    // Рассчитываем горизонтальное движение на основе ввода
     float horizontalSpeed = horizontalInput * speed;
 
-    float targetSize = 64.f;
-    float scaleFactorX = targetSize / 23;
-    float scaleFactorY = targetSize / 35;
+    float scaleFactorX = 64.f / frameWidth;
+    float scaleFactorY = 64.f / frameHeight;
 
-    if (horizontalInput != 0.f){
+    // анимация при движении
+    if (horizontalInput != 0.f) {
         animationTimer += deltaTime;
-
         if (animationTimer >= frameDuration) {
             animationTimer = 0.f;
-            currentFrameIndex = (currentFrameIndex + 1) % numFrames; // Следующий кадр
-
-            // Смещение кадра по ширине
-            sf::Vector2<int> position(currentFrameIndex * frameWidth, 0); // Положение кадра
-            sf::Vector2<int> size(frameWidth, frameHeight);               // Размер кадра
-            currentFrame = sf::IntRect(position, size);
-
-            sprite->setTextureRect(currentFrame); // Применяем новую область текстуры
+            currentFrameIndex = (currentFrameIndex + 1) % walkFrameCount;
+            currentFrame = sf::IntRect(
+                sf::Vector2i(currentFrameIndex * frameWidth, 0),
+                sf::Vector2i(frameWidth, frameHeight)
+            );
+            sprite->setTextureRect(currentFrame);
         }
     }
 
-
-    // Добавляем разворот игрока на основе направления движения
-    if (horizontalInput > 0.f) { // Движение вправо
-        if (sprite->getScale().x < 0.f) { // Если игрок был повернут влево
-            sprite->move(sf::Vector2f(spriteSize.x, 0.f)); // Компенсация смещения вправо
-        }
+    // разворот спрайта
+    if (horizontalInput > 0.f) {
         sprite->setScale(sf::Vector2f(std::abs(scaleFactorX), scaleFactorY));
-    } else if (horizontalInput < 0.f) { // Движение влево
-        if (sprite->getScale().x > 0.f) { // Если игрок был повернут вправо
-            sprite->move(sf::Vector2f(-spriteSize.x, 0.f)); // Компенсация смещения влево
-        }
-        sf::Vector2f origin(16, 0);
-        sprite->setOrigin(origin);
+    } else if (horizontalInput < 0.f) {
         sprite->setScale(sf::Vector2f(-std::abs(scaleFactorX), scaleFactorY));
     }
 
+    sf::Vector2f velocity = physicsModule->integrate(deltaTime, horizontalSpeed, verticalSpeed);
 
-    sf::Vector2f velocity = physicsModule->integrate(deltaTime, horizontalSpeed,
-                                                                verticalSpeed);
-
-    // Вычисляем кандидатное положение.
     float candidateX = pos.x + velocity.x * deltaTime;
     float candidateY = pos.y + velocity.y * deltaTime;
 
-    // Проверка горизонтального движения
-    if (horizontalSpeed < 0.f) { // Движемся влево
+    // коллизии по x
+    if (horizontalSpeed < 0.f) {
         if (collisionModule->checkLeftCollision(level, candidateX, pos, spriteSize)) {
-            candidateX = pos.x;   // Отмена горизонтального смещения
+            candidateX = pos.x;
             horizontalSpeed = 0.f;
         }
-    } else if (horizontalSpeed > 0.f) { // Движемся вправо
+    } else if (horizontalSpeed > 0.f) {
         if (collisionModule->checkRightCollision(level, candidateX, pos, spriteSize)) {
-            candidateX = pos.x;   // Отмена горизонтального смещения
+            candidateX = pos.x;
             horizontalSpeed = 0.f;
         }
     }
 
-    // Проверка вертикального движения
-    if (verticalSpeed < 0.f) { // Движемся вверх (прыжок)
+    // коллизии по y
+    if (verticalSpeed < 0.f) {
         if (collisionModule->checkTopCollision(level, candidateY, pos, spriteSize, verticalSpeed)) {
+            verticalSpeed = 0.f;
         }
-    } else if (verticalSpeed > 0.f) { // Движемся вниз (падение)
+    } else if (verticalSpeed > 0.f) {
         if (collisionModule->checkBottomCollision(level, candidateY, pos, spriteSize, verticalSpeed, isOnGround)) {
+            verticalSpeed = 0.f;
         }
     }
 
-    // Обновляем позицию спрайта.
     sprite->setPosition(sf::Vector2f(candidateX, candidateY));
 }
 
-void Player::draw(sf::RenderWindow& window) {
-    // Отрисовка спрайта
+void Player::draw(sf::RenderWindow &window) {
     window.draw(*sprite);
 }
