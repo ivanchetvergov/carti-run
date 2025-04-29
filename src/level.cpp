@@ -50,8 +50,7 @@ void Level::loadLevel(const std::vector<std::string>& data) {
                     tileSize / wallTexture->getSize().y
                 ));
                 tile.isSolid = true; // Стена непроходимая
-            } else {
-                // Устанавливаем стену и позицию
+            } else if (data[y][x] == '_'){
                 tile.tileSprite = std::make_unique<sf::Sprite>(*emptyTexture);
                 tile.tileSprite->setPosition(pos);
                 tile.tileSprite->setScale(sf::Vector2f(
@@ -59,6 +58,15 @@ void Level::loadLevel(const std::vector<std::string>& data) {
                     tileSize / wallTexture->getSize().y
                 ));
                 tile.isSolid = false; // Стена непроходимая
+            } else if (data[y][x] == '!'){
+                tile.tileSprite = std::make_unique<sf::Sprite>(*emptyTexture);
+                tile.tileSprite->setPosition(pos);
+                tile.tileSprite->setScale(sf::Vector2f(
+                    tileSize / wallTexture->getSize().x,
+                    tileSize / wallTexture->getSize().y
+                ));
+                tile.isSolid = false; // Стена непроходимая
+                tile.isKilling = true;
             }
 
             tiles[y].emplace_back(std::move(tile)); // Добавляем плитку в строку
@@ -80,6 +88,13 @@ void Level::draw(sf::RenderWindow& window) {
 bool Level::isTileSolid(int x, int y) const {
     if (x >= 0 && x < width && y >= 0 && y < height) {
         return tiles[y][x].isSolid; // return solidity of the tile
+    }
+    return false; // if coordinates are out of bounds, consider it impassable
+}
+
+bool Level::isKilling(int x, int y) const {
+    if (x >= 0 && x < width && y >= 0 && y < height) {
+        return tiles[y][x].isKilling; // return solidity of the tile
     }
     return false; // if coordinates are out of bounds, consider it impassable
 }

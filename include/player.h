@@ -14,8 +14,10 @@ class CollisionModule;
 enum class PlayerState {
     Idle,
     Walking,
-    Jumping
+    Jumping,
+    Falling
 };
+
 
 class Player {
 public:
@@ -25,12 +27,21 @@ public:
     void update(float deltaTime, const Level& level);
     void draw(sf::RenderWindow& window);
 
-    sf::Vector2f getPosition() const { return sprite->getPosition(); }
+    sf::Vector2f getPosition() const { return sprite->getPosition(); };
+
+    void kill() { isDead = true; };
+    bool get_isDead() { return isDead; }
+    void respawn();
+
+    // обновление анимации
+    void updateAnimation(float deltaTime);
 
 private:
     // графика
     sf::Texture texture;
     std::unique_ptr<sf::Sprite> sprite;
+
+    bool isDead = false;
 
     // ориентация
     bool isFacingRight = true;
@@ -53,11 +64,15 @@ private:
     int walkFrameCount = 8; // количество кадров в анимации ходьбы
 
     static constexpr int frameWidth = 23;
-    static constexpr int frameHeight = 35;
+    static constexpr int frameHeight = 32;
 
     // кадры анимации
-    int jumpFrameX = 0; // координата X фрейма прыжка
-    int jumpFrameY = frameHeight; // прыжок — следующая строка
+    int jumpFrameX =  frameWidth * 8; 
+    int jumpFrameY = 0; 
+
+    int fallingFrameX = frameWidth * 9;
+    int fallingFrameY = 0; 
+
 
     // текущее состояние
     PlayerState state = PlayerState::Idle;
@@ -66,6 +81,4 @@ private:
     std::unique_ptr<PhysicsModule> physicsModule;
     std::unique_ptr<CollisionModule> collisionModule;
 
-    // обновление анимации
-    void updateAnimation(float deltaTime);
 };

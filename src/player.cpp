@@ -5,79 +5,75 @@
 
 Player::Player() {}
 
-Player::Player(const std::string &texturePath) {
+Player::Player(const std::string& texturePath) {
     if (!texture.loadFromFile(texturePath)) {
         std::cerr << "failed to load player texture from " << texturePath << "\n";
     }
+
     sprite = std::make_unique<sf::Sprite>(texture);
 
-    // задаём начальный кадр (позиция и размер)
-    currentFrame = sf::IntRect({0, 0}, {frameWidth, frameHeight});
+    // начальный кадр
+    currentFrame = sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(frameWidth, frameHeight));
     sprite->setTextureRect(currentFrame);
 
-    // масштабирование под 64x64
+    // масштабируем до 64x64
     float scaleFactorX = 64.f / frameWidth;
     float scaleFactorY = 64.f / frameHeight;
     sprite->setScale(sf::Vector2f(scaleFactorX, scaleFactorY));
 
-    // origin по центру снизу
+    // origin в центре по горизонтали и внизу по вертикали
     sprite->setOrigin(sf::Vector2f(frameWidth / 2.f, 0));
 
-    // начальная позиция
+    // стартовая позиция
     sprite->setPosition(sf::Vector2f(100.f, 100.f));
 
     // модули
     physicsModule = std::make_unique<PhysicsModule>(gravity, jumpForce);
     collisionModule = std::make_unique<CollisionModule>();
-
-    // параметры анимации
-    frameDuration = 0.1f;
-    currentFrameIndex = 0;
-    walkFrameCount = 8;
 }
 
-void Player::update(float deltaTime, const Level &level) {
+void Player::update(float deltaTime, const Level& level) {
+
+    if (isDead) return;
+
     InputManager inputManager;
     float horizontalInput = inputManager.getHorizontalInput();
 
+    sf::Vector2f pos = sprite->getPosition();
+    sf::Vector2f scale = sprite->getScale();
+    sf::Vector2f spriteSize(frameWidth * std::abs(scale.x), frameHeight * std::abs(scale.y));
+
+    // проверка на убийственную плитку
+    int tileX = static_cast<int>(pos.x / level.getTileSize());
+    int tileY = static_cast<int>(pos.y / level.getTileSize());
+    if (level.isKilling(tileX, tileY)) {
+        kill();
+        return;
+    }
+
+    // прыжок
     if (inputManager.isJumpPressed() && isOnGround) {
         verticalSpeed = physicsModule->getJumpForce();
         isJumping = true;
         isOnGround = false;
     }
 
-    sf::Vector2f pos = sprite->getPosition();
-    sf::Vector2f scale = sprite->getScale();
-    sf::Vector2f spriteSize(frameWidth * std::abs(scale.x), frameHeight * std::abs(scale.y));
-
     float horizontalSpeed = horizontalInput * speed;
 
+    // разворот
     float scaleFactorX = 64.f / frameWidth;
     float scaleFactorY = 64.f / frameHeight;
 
-    // анимация при движении
-    if (horizontalInput != 0.f) {
-        animationTimer += deltaTime;
-        if (animationTimer >= frameDuration) {
-            animationTimer = 0.f;
-            currentFrameIndex = (currentFrameIndex + 1) % walkFrameCount;
-            currentFrame = sf::IntRect(
-                sf::Vector2i(currentFrameIndex * frameWidth, 0),
-                sf::Vector2i(frameWidth, frameHeight)
-            );
-            sprite->setTextureRect(currentFrame);
-        }
-    }
-
-    // разворот спрайта
     if (horizontalInput > 0.f) {
         sprite->setScale(sf::Vector2f(std::abs(scaleFactorX), scaleFactorY));
+        isFacingRight = true;
     } else if (horizontalInput < 0.f) {
         sprite->setScale(sf::Vector2f(-std::abs(scaleFactorX), scaleFactorY));
+        isFacingRight = false;
     }
 
+    // физика
     sf::Vector2f velocity = physicsModule->integrate(deltaTime, horizontalSpeed, verticalSpeed);
-
     float candidateX = pos.x + velocity.x * deltaTime;
     float candidateY = pos.y + velocity.y * deltaTime;
 
@@ -94,6 +90,9 @@ void Player::update(float deltaTime, const Level &level) {
         }
     }
 
+    // сброс состояния
+    isOnGround = false;
+
     // коллизии по y
     if (verticalSpeed < 0.f) {
         if (collisionModule->checkTopCollision(level, candidateY, pos, spriteSize, verticalSpeed)) {
@@ -105,9 +104,64 @@ void Player::update(float deltaTime, const Level &level) {
         }
     }
 
+    // определение состояния
+    if (!isOnGround) {
+        state = (verticalSpeed > 0.f) ? PlayerState::Falling : PlayerState::Jumping;
+    } else {
+        if (horizontalInput != 0.f) {
+            state = PlayerState::Walking;
+        } else {
+            state = PlayerState::Idle;
+        }
+    }
+
     sprite->setPosition(sf::Vector2f(candidateX, candidateY));
+    updateAnimation(deltaTime);
 }
 
-void Player::draw(sf::RenderWindow &window) {
+
+
+void Player::updateAnimation(float deltaTime) {
+    animationTimer += deltaTime;
+
+    if (state == PlayerState::Walking) {
+        if (animationTimer >= frameDuration) {
+            animationTimer = 0.f;
+            currentFrameIndex = (currentFrameIndex + 1) % walkFrameCount;
+            currentFrame = sf::IntRect(
+                sf::Vector2i(currentFrameIndex * frameWidth, 0),
+                sf::Vector2i(frameWidth, frameHeight)
+            );
+            sprite->setTextureRect(currentFrame);
+        }
+    } else if (state == PlayerState::Jumping) {
+        currentFrame = sf::IntRect(
+            sf::Vector2i(jumpFrameX, jumpFrameY),
+            sf::Vector2i(frameWidth, frameHeight)
+        );
+        sprite->setTextureRect(currentFrame);
+    } else if (state == PlayerState::Idle) {
+        currentFrame = sf::IntRect(
+            sf::Vector2i(0, 0),
+            sf::Vector2i(frameWidth, frameHeight)
+        );
+        sprite->setTextureRect(currentFrame);
+    } else if (state == PlayerState::Falling) {
+        currentFrame = sf::IntRect(
+            sf::Vector2i(fallingFrameX, fallingFrameY),
+            sf::Vector2i(frameWidth, frameHeight)
+        );
+        sprite->setTextureRect(currentFrame);
+    }
+}
+
+void Player::draw(sf::RenderWindow& window) {
     window.draw(*sprite);
+}
+
+void Player::respawn() {
+    sprite->setPosition(sf::Vector2f(100.f, 100.f));
+    verticalSpeed = 0.f;
+    isDead = false;
+    isOnGround = false;
 }

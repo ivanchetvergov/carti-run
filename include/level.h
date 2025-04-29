@@ -10,6 +10,7 @@ class Tile {
 public:
     std::unique_ptr<sf::Sprite> tileSprite; // Спрайт плитки
     bool isSolid = false;                   // Является ли плитка непроходимой
+    bool isKilling = false;
 };
 
 // Класс Level, отвечающий за загрузку и отрисовку уровня
@@ -39,5 +40,6 @@ public:
     void loadLevel(const std::vector<std::string>& data); // загрузка из массива
     void draw(sf::RenderWindow& window); // отрисовка
     bool isTileSolid(int x, int y) const; // проверка стенки
+    bool isKilling(int x, int y) const;
 
 };

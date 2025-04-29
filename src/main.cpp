@@ -1,11 +1,14 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
+
 #include "player.h"
 #include "level.h"
+
 #include <iostream>
 #include <vector>
 #include <optional>
 #include <variant>  // Нужен для std::holds_alternative
+
 
 int main() {
     // Создаём окно с разрешением 1024×768
@@ -13,7 +16,7 @@ int main() {
 
     // Создаём игрока. Убедитесь, что у класса Player есть метод getPosition(),
     // возвращающий sf::Vector2f с позицией игрока.
-    Player player("../assets/mario_run.png");
+    Player player("../assets/ful_anim.png");
 
     // Создание и настройка уровня
     Level level;
@@ -53,11 +56,12 @@ int main() {
         "1000111000110001______11_________________",
         "1000000000000001_________________________",
         "1001100000000001_________________________",
-        "1000000000000001111111111111111111111111_",
-        "10000000000000000000000000000000000000001",
-        "11111110000000000000000000000000000000000",
-        "11111111111000000000000000000000000000000",
-        "111111111111111___1__1__1__1__1___1____11"
+        "10000000000000011__1111__1___111__11__11_",
+        "100000000000000_________________________1",
+        "111111100000000__________________________",
+        "111111111110000__________________________",
+        "111111111111111___1__1__1__1__1___1____11",
+        "______________!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     };
 
     level.loadLevel(levelData);
@@ -81,40 +85,86 @@ int main() {
     float scaleX = static_cast<float>(windowSize.x) / cloudsTexture->getSize().x;
     float scaleY = static_cast<float>(windowSize.y) / cloudsTexture->getSize().y;
     cloudsSprite.setScale(sf::Vector2f(scaleX, scaleY)); // Передаем sf::Vector2f
+    
 
     sf::Clock clock;
 
+    sf::Font font;
+    if (!font.openFromFile("../assets/menu_font.ttf")) {
+        throw std::runtime_error("failed to load font");
+    }
+    
+    sf::Text deathText(font, "YOU'RE DEAD!\npress [R] to respawn\npress [Q] to quit", 40);
+    deathText.setFillColor(sf::Color::Red);
+    deathText.setPosition(sf::Vector2f(200.f, 200.f));
+    
+
+    bool showDeathScreen = false;
+
     while (window.isOpen()) {
+        float deltaTime = clock.restart().asSeconds();
+
         std::optional<sf::Event> eventOpt;
-        while (auto event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
+        while ((eventOpt = window.pollEvent())) {
+            const sf::Event& event = *eventOpt;
+
+            if (event.is<sf::Event::Closed>()) {
                 window.close();
+            }
+
+            if (showDeathScreen) {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R)){
+                    player.respawn();
+                    showDeathScreen = false;
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Q)){
+                    window.close();
+                }
+                continue;
             }
         }
 
-        float deltaTime = clock.restart().asSeconds();
-        player.update(deltaTime, level);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)){
+            player.kill();
+        }
 
-        // Устанавливаем позицию камеры в соответствии с позицией игрока
+        if (player.get_isDead()) {
+            showDeathScreen = true;
+        }
+
+        if (!showDeathScreen) {
+            player.update(deltaTime, level);
+        }
+
         sf::Vector2f playerPos = player.getPosition();
         camera.setCenter(playerPos);
         window.setView(camera);
 
-        // 1. Очистка окна
-        window.clear();  // Теперь удаляем чёрный фон (без sf::Color::Black)
+        window.clear();
 
-        // 2. Отрисовка фона с облаками
-        window.setView(window.getDefaultView());  // Устанавливаем статический вид
-        window.draw(cloudsSprite);               // Отрисовываем фон с облаками
+        // фон
+        window.setView(window.getDefaultView());
+        window.draw(cloudsSprite);
 
-        // 3. Отрисовка уровня и игрока
-        window.setView(camera);                  // Переключаемся на камеру
+        // мир и игрок
+        window.setView(camera);
         level.draw(window);
         player.draw(window);
 
-        // 4. Обновляем окно
+        if (showDeathScreen) {
+            window.setView(window.getDefaultView());
+            window.draw(deathText);
+        }
+
         window.display();
-    }        
+    }
 
     return 0;
 }
+
+
+
+
+
+
+
