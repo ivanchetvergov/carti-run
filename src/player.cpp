@@ -1,5 +1,5 @@
-#include "player.h"
-#include "level.h"
+#include "../include/player.h"
+#include "../include/level.h"
 
 #include <iostream>
 
@@ -25,7 +25,7 @@ Player::Player(const std::string& texturePath) {
     sprite->setOrigin(sf::Vector2f(frameWidth / 2.f, 0));
 
     // стартовая позиция
-    sprite->setPosition(sf::Vector2f(100.f, 100.f));
+    sprite->setPosition(spawnPoint);
 
     // модули
     physicsModule = std::make_unique<PhysicsModule>(gravity, jumpForce);
@@ -160,7 +160,7 @@ void Player::draw(sf::RenderWindow& window) {
 }
 
 void Player::respawn() {
-    sprite->setPosition(sf::Vector2f(100.f, 100.f));
+    sprite->setPosition(spawnPoint);
     verticalSpeed = 0.f;
     isDead = false;
     isOnGround = false;

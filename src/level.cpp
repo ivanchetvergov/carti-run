@@ -1,4 +1,4 @@
-#include "level.h"
+#include "../include/level.h"
 
 /* Set the wall texture. */
 void Level::setWallTexture(const std::shared_ptr<sf::Texture>& texture) {
@@ -12,6 +12,10 @@ void Level::setBackgroundTexture(const std::shared_ptr<sf::Texture>& texture) {
 
 void Level::setCloudTexture(const std::shared_ptr<sf::Texture>& texture) {
     cloudsTexture = texture; // assign wall texture
+}
+
+void Level::setSpikeTexture(const std::shared_ptr<sf::Texture>& texture) {
+    spikesTexture = texture; // assign wall texture
 }
 
 void Level::setEmptyTexture(const std::shared_ptr<sf::Texture>& texture) {
@@ -59,7 +63,7 @@ void Level::loadLevel(const std::vector<std::string>& data) {
                 ));
                 tile.isSolid = false; // Стена непроходимая
             } else if (data[y][x] == '!'){
-                tile.tileSprite = std::make_unique<sf::Sprite>(*emptyTexture);
+                tile.tileSprite = std::make_unique<sf::Sprite>(*spikesTexture);
                 tile.tileSprite->setPosition(pos);
                 tile.tileSprite->setScale(sf::Vector2f(
                     tileSize / wallTexture->getSize().x,

@@ -41,6 +41,8 @@ private:
     sf::Texture texture;
     std::unique_ptr<sf::Sprite> sprite;
 
+    sf::Vector2f spawnPoint = sf::Vector2f(242.f, 64.f);
+
     bool isDead = false;
 
     // ориентация

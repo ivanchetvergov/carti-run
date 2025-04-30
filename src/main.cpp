@@ -1,8 +1,8 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
 
-#include "player.h"
-#include "level.h"
+#include "../include/player.h"
+#include "../include/level.h"
 
 #include <iostream>
 #include <vector>
@@ -42,8 +42,13 @@ int main() {
     if (!cloudsTexture->loadFromFile("../assets/clouds.png")){
         throw std::runtime_error("Failed to load clouds texture");
     }
-
     level.setCloudTexture(cloudsTexture);
+
+    auto spikesTexture = std::make_shared<sf::Texture>();
+    if (!spikesTexture->loadFromFile("../assets/spikes.png")){
+        throw std::runtime_error("Failed to load spikes texture");
+    }
+    level.setSpikeTexture(spikesTexture);
 
     std::vector<std::string> levelData = {
         "_____1111111_____________________________",
@@ -55,7 +60,7 @@ int main() {
         "1000000000000001_________________________",
         "1000111000110001______11_________________",
         "1000000000000001_________________________",
-        "1001100000000001_________________________",
+        "1001100000000001___!!!!__________________",
         "10000000000000011__1111__1___111__11__11_",
         "100000000000000_________________________1",
         "111111100000000__________________________",
@@ -63,6 +68,26 @@ int main() {
         "111111111111111___1__1__1__1__1___1____11",
         "______________!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     };
+/*
+    std::vector<std::string> levelData = {
+        "__________________________________________",
+        "_____0000000__________0000000_____________",
+        "_____0111110__________0111110_____________",
+        "__________________________________________",
+        "___111_________0000_________111___________",
+        "___100_________0110_________001___________",
+        "___100_______________________001__________",
+        "___100______!!!!_____!!!!____001__________",
+        "___100______0000_____0000____001__________",
+        "___1111111_________________11111__________",
+        "_________1_________________1______________",
+        "_________1_______0000______1______________",
+        "_________1_______0!!0______1______________",
+        "_________11111111000!!!!!!!!!!!!!!!_______",
+        "__________________________________________",
+        "___________________111111111111111111111__"
+    };
+*/
 
     level.loadLevel(levelData);
 
@@ -70,7 +95,7 @@ int main() {
     if (!backgroundMusic.openFromFile("../assets/differentDay.mp3")) {
         throw std::runtime_error("Failed to load music");
     }
-    backgroundMusic.setVolume(0.80f);
+    backgroundMusic.setVolume(1.f);
     backgroundMusic.play();
 
     // Создаём камеру (sf::View). Конструктор sf::FloatRect в SFML 3 принимает два вектора:
