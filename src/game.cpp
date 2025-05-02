@@ -1,26 +1,32 @@
-/*
-#include "game.h"
+#include "../include/game.h"
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
-
-#include "player.h"
-#include "level.h"
-
+#include "../include/player.h"
+#include "../include/level.h"
 #include <iostream>
 #include <vector>
 #include <optional>
 #include <memory>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
+
+// Конструктор Game: все поля, у которых нет дефолтных конструкторов, инициализируются через список инициализации.
 Game::Game()
-: window(sf::VideoMode({1024, 768}), "Carti run"),
-  camera(sf::FloatRect(sf::Vector2f(0.f, 0.f), sf::Vector2f(1024.f, 768.f))),
-  player("../assets/ful_anim.png"),
-  showDeathScreen(false),
-  cloudsSprite(),
-  deathText()
+  : deathWindowSprite(deathWindowTexture),
+    winWindowSprite(winWindowTexture),
+    cloudsSprite(deathWindowTexture),
+    window(sf::VideoMode({1024, 768}), "Carti run"),
+    camera(sf::FloatRect(sf::Vector2f(0.f, 0.f), sf::Vector2f(1024.f, 768.f))),
+    player("../assets/ful_anim.png"),
+    level(),        
+    showDeathScreen(false),
+    font(),            
+    timerText(font, "", 24)
 {
-    // загрузка текстур
+    // Загрузка текстур для уровня
     loadTexture(wallTexture, "../assets/block.png");
     level.setWallTexture(wallTexture);
 
@@ -36,7 +42,16 @@ Game::Game()
     loadTexture(spikesTexture, "../assets/spikes.png");
     level.setSpikeTexture(spikesTexture);
 
-    // загрузка уровня
+    // Загрузка текстуры окна смерти
+    if (!deathWindowTexture.loadFromFile("../assets/death_window.png"))
+    {
+        throw std::runtime_error("failed to load death window texture");
+    }
+    deathWindowSprite = sf::Sprite(deathWindowTexture);
+    // Рисуем окно смерти с левого верхнего угла
+    deathWindowSprite.setPosition(sf::Vector2f(0.f, 0.f));
+
+    // Загрузка данных уровня
     std::vector<std::string> levelData = {
         "_____1111111_____________________________",
         "1111110000011101_________________________",
@@ -55,33 +70,37 @@ Game::Game()
         "111111111111111___1__1__1__1__1___1____11",
         "______________!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     };
-
     level.loadLevel(levelData);
 
-    // музыка
-    if (!backgroundMusic.openFromFile("../assets/differentDay.mp3")) {
+    // Загрузка музыки
+    if (!backgroundMusic.openFromFile("../assets/differentDay.mp3"))
+    {
         throw std::runtime_error("failed to load music");
     }
     backgroundMusic.setVolume(0.0f);
     backgroundMusic.play();
 
-    // облака
-    cloudsSprite.setTexture(*cloudsTexture);
+    // Инициализация облаков: cloudsTexture уже загружен, задаём спрайт облаков
+    cloudsSprite = sf::Sprite(*cloudsTexture);
     sf::Vector2u windowSize = window.getSize();
     float scaleX = static_cast<float>(windowSize.x) / cloudsTexture->getSize().x;
     float scaleY = static_cast<float>(windowSize.y) / cloudsTexture->getSize().y;
     cloudsSprite.setScale(sf::Vector2f(scaleX, scaleY));
 
-    // текст
-    if (!font.openFromFile("../assets/menu_font.ttf")) {
+    // Загрузка шрифта для текста
+    if (!font.openFromFile("../assets/menu_font.ttf"))
+    {
         throw std::runtime_error("failed to load font");
     }
+    
+    // Инициализация текста таймера
+    timerText.setFont(font);
+    timerText.setCharacterSize(26);
+    timerText.setFillColor(sf::Color::White);
+    timerText.setPosition(sf::Vector2f(10.f, 10.f));
 
-    deathText.setFont(font);
-    deathText.setString("YOU'RE DEAD!\npress [R] to respawn\npress [Q] to quit");
-    deathText.setCharacterSize(40);
-    deathText.setFillColor(sf::Color::Red);
-    deathText.setPosition(sf::Vector2f(200.f, 200.f));
+    // Запускаем игровой таймер: gameTimer отсчитывает время с момента запуска игры
+    gameTimer.restart();
 }
 
 void Game::loadTexture(std::shared_ptr<sf::Texture>& texture, const std::string& path) {
@@ -92,7 +111,7 @@ void Game::loadTexture(std::shared_ptr<sf::Texture>& texture, const std::string&
 }
 
 void Game::run() {
-    sf::Clock clock;
+    sf::Clock clock; // Для измерения deltaTime
 
     while (window.isOpen()) {
         float deltaTime = clock.restart().asSeconds();
@@ -111,6 +130,7 @@ void Game::run() {
         }
 
         updateCamera();
+        updateTimer();  // Обновляем текст таймера
         render();
     }
 }
@@ -119,7 +139,6 @@ void Game::handleEvents() {
     std::optional<sf::Event> eventOpt;
     while ((eventOpt = window.pollEvent())) {
         const sf::Event& event = *eventOpt;
-
         if (event.is<sf::Event::Closed>()) {
             window.close();
         }
@@ -128,6 +147,7 @@ void Game::handleEvents() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R)) {
                 player.respawn();
                 showDeathScreen = false;
+                gameTimer.restart();  // Перезапускаем таймер при возрождении
             }
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Q)) {
                 window.close();
@@ -142,24 +162,47 @@ void Game::updateCamera() {
     window.setView(camera);
 }
 
+void Game::updateTimer() {
+    float elapsed = gameTimer.getElapsedTime().asSeconds();
+    int minutes = static_cast<int>(elapsed) / 60;
+    int seconds = static_cast<int>(elapsed) % 60;
+    int milliseconds = static_cast<int>((elapsed - static_cast<int>(elapsed)) * 1000);
+
+    std::stringstream ss;
+    ss << minutes << ":"
+       << std::setw(2) << std::setfill('0') << seconds << ":"
+       << std::setw(3) << std::setfill('0') << milliseconds;
+    
+    timerText.setString(ss.str());
+}
+
 void Game::render() {
     window.clear();
 
-    // фон
+    // Рисуем фон (облака)
     window.setView(window.getDefaultView());
     window.draw(cloudsSprite);
 
-    // мир и игрок
+    // Рисуем мир и игрока
     window.setView(camera);
     level.draw(window);
     player.draw(window);
 
-    // если игрок умер
+    // Если игрок умер, рисуем окно смерти
     if (showDeathScreen) {
         window.setView(window.getDefaultView());
-        window.draw(deathText);
+        window.draw(deathWindowSprite);
     }
+
+     // Если экран победы активен — рисуем win screen
+     else if (showWinScreen) {
+        window.setView(window.getDefaultView());
+        window.draw(winWindowSprite);
+    }
+
+    // Рисуем таймер (всегда в левом верхнем углу)
+    window.setView(window.getDefaultView());
+    window.draw(timerText);
 
     window.display();
 }
-*/

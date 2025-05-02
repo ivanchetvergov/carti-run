@@ -119,8 +119,6 @@ void Player::update(float deltaTime, const Level& level) {
     updateAnimation(deltaTime);
 }
 
-
-
 void Player::updateAnimation(float deltaTime) {
     animationTimer += deltaTime;
 
