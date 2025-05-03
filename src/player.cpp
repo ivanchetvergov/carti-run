@@ -15,6 +15,7 @@ Player::Player(const std::string& texturePath) {
     }
 
     sprite = std::make_unique<sf::Sprite>(texture);
+    smoke = std::make_unique<sf::Sprite>(smokeTexture);
 
     // начальный кадр
     currentFrame = sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(frameWidth, frameHeight));
@@ -72,11 +73,25 @@ void Player::update(float deltaTime, const Level& level) {
         isDashing = true;
         dashClock.restart();
         cooldownClock.restart();
+
+        if (isFacingRight) {
+            smoke->setScale(sf::Vector2f(1.f, 1.f)); // Обычный размер
+            smoke->setPosition(sprite->getPosition() - sf::Vector2f(76.f, -10.f));
+        } else {
+            smoke->setScale(sf::Vector2f(-1.f, 1.f)); // Отражаем по горизонтали
+            smoke->setPosition(sprite->getPosition() - sf::Vector2f(-76.f, -10.f));
+        }
+        showSmoke = true;
+        smokeTimer.restart(); // Запускаем таймер
+    }
+
+    if (showSmoke && smokeTimer.getElapsedTime().asSeconds() > 0.15f) {
+        showSmoke = false;
     }
 
     // Ограничиваем время рывка
     if (isDashing && dashClock.getElapsedTime().asSeconds() > dashTime) {
-        isDashing = false;;
+        isDashing = false;
     }
 
     float horizontalSpeed = horizontalInput * currentSpeed;
@@ -178,6 +193,11 @@ void Player::updateAnimation(float deltaTime) {
 }
 
 void Player::draw(sf::RenderWindow& window) {
+
+    if (showSmoke) {
+        window.draw(*smoke);
+    }
+
     window.draw(*sprite);
 }
 

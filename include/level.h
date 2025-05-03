@@ -11,6 +11,8 @@ public:
     std::unique_ptr<sf::Sprite> tileSprite; // Спрайт плитки
     bool isSolid = false;                   // Является ли плитка непроходимой
     bool isKilling = false;
+    bool isBouncy = false;   // Прыжковый блок
+    bool isHangable = false
 };
 
 // Класс Level, отвечающий за загрузку и отрисовку уровня

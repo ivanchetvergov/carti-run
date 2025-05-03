@@ -1,22 +1,16 @@
-#include "mob.h"
-#include <stdexcept>
+#include "../include/mob.h"
 
+#include <SFML/Graphics/Rect.hpp>
+#include <stdexcept>
 #include <iostream>
 
-Mob::Mob(const std::string& texturePath, sf::Vector2f position, float speed)
-    : speed(speed), movingRight(true) {
-
-        if (!texture.loadFromFile(texturePath)) {
-            std::cerr << "failed to load player texture from " << texturePath << "\n";
-        }
-    
-        sprite = std::make_unique<sf::Sprite>(texture);
-        sprite->setOrigin(sf::Vector2f(64 / 2.f, 0));
-    
-        // стартовая позиция
-        sprite->setPosition(position);
+Mob::Mob(std::shared_ptr<sf::Texture> texture, sf::Vector2f position, float speed)
+    : texture(texture), speed(speed), movingRight(true)
+{
+    sprite = std::make_unique<sf::Sprite>(*texture);
+    sprite->setOrigin(sf::Vector2f(64.f / 2.f, 0.f));
+    sprite->setPosition(position);
 }
-
 
 
 void Mob::update(float deltaTime, Player& player, const Level& level) {
@@ -34,10 +28,15 @@ void Mob::update(float deltaTime, Player& player, const Level& level) {
         sprite -> move(sf::Vector2f(movingRight ? moveStep : -moveStep, 0));
     }
 
-    // Проверка столкновения с игроком
-    if (false) {
-        player.kill();  // Если моб касается игрока — убиваем его
-    }
+    sf::Vector2f mobPos = sprite->getPosition();
+sf::Vector2f playerPos = player.getPosition();
+
+float distance = std::sqrt(std::pow(playerPos.x - mobPos.x, 2) + std::pow(playerPos.y - mobPos.y, 2));
+
+if (distance < 50.f) { // Радиус столкновения
+    player.kill();
+}    
+    
 }
 
 void Mob::draw(sf::RenderWindow& window) {

@@ -26,13 +26,24 @@ Game::Game()
     dashText(font, "", 24)   // Инициализация таймера рывка
     
 {
-    // Создаем мобов с начальными позициями
-    
-    mobs.emplace_back("../assets/mob2.png", sf::Vector2f(600.f, 320.f), 220.f);  
-    mobs.emplace_back("../assets/mob2.png", sf::Vector2f(600.f, 320.f), 520.f);    
-    mobs.emplace_back("../assets/mob2.png", sf::Vector2f(600.f, 320.f), 320.f); 
-    mobs.emplace_back("../assets/mob1.png", sf::Vector2f(600.f, 320.f), 420.f); 
+    auto mob1Tex = std::make_shared<sf::Texture>();
+    auto mob2Tex = std::make_shared<sf::Texture>();
 
+
+    if (!mob1Tex->loadFromFile("../assets/mob1.png")) {
+        std::cerr << "failed to load mob1.png\n";
+    }
+    
+    if (!mob2Tex->loadFromFile("../assets/mob2.png")) {
+        std::cerr << "failed to load mob2.png\n";
+    }
+    
+    
+    mobs.emplace_back(mob2Tex, sf::Vector2f(500.f, 384.f), 24.f);  
+    mobs.emplace_back(mob2Tex, sf::Vector2f(600.f, 320.f), 360.f);    
+    mobs.emplace_back(mob2Tex, sf::Vector2f(600.f, 320.f), 600.f); 
+    mobs.emplace_back(mob1Tex, sf::Vector2f(600.f, 320.f), 420.f); 
+   
     // Загрузка текстур для уровня
     loadTexture(wallTexture, "../assets/block.png");
     level.setWallTexture(wallTexture);

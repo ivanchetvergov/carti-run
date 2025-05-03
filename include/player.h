@@ -39,7 +39,7 @@ public:
     void updateAnimation(float deltaTime);
 
     float getDashCooldownRemaining() const; // Возвращает оставшееся время кулдауна рывка
-    sf::FloatRect getBounds() const { return sprite->getGlobalBounds(); };
+    sf::FloatRect getBounds() const { return sprite->getGlobalBounds(); }
     
 private:
     // графика
