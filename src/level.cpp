@@ -1,5 +1,10 @@
 #include "../include/level.h"
 
+// Устанавливаем текстуру для указанного типа плитки
+void Level::setTexture(TileType type, const std::shared_ptr<sf::Texture>& texture) {
+    textures[type] = texture;
+}
+
 /* Set the wall texture. */
 void Level::setWallTexture(const std::shared_ptr<sf::Texture>& texture) {
     wallTexture = texture; // assign wall texture

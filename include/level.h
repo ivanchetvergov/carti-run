@@ -4,6 +4,17 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <map>
+
+enum class TileType {
+    Wall,       // Стена
+    Background, // Фон
+    Clouds,     // Облака
+    Empty,      // Пустая плитка
+    Spikes,     // Шипы (смертельная плитка)
+    Bouncy,     // Отталкивающая плитка (для усиленного прыжка)
+    Hangable    // Плитка, за которую можно зацепиться (для подвисания)
+};
 
 // Класс Tile, представляющий отдельную плитку
 class Tile {
@@ -12,23 +23,17 @@ public:
     bool isSolid = false;                   // Является ли плитка непроходимой
     bool isKilling = false;
     bool isBouncy = false;   // Прыжковый блок
-    bool isHangable = false
+    bool isHangable = false;
+
+    Tile() = default;
 };
 
 // Класс Level, отвечающий за загрузку и отрисовку уровня
 class Level {
-private:
-    std::vector<std::vector<Tile>> tiles;           // Двумерный массив плиток
-    int width = 0, height = 0;                      // Размеры уровня
-    float tileSize = 64.0f;                         // Размер плитки (например, 32x32 пикселя)
-    std::shared_ptr<sf::Texture> wallTexture;       // Текстура стены
-    std::shared_ptr<sf::Texture> backgroundTexture; // Текстура фона
-    std::shared_ptr<sf::Texture> cloudsTexture;     // Текстура фона
-    std::shared_ptr<sf::Texture> emptyTexture;      // Текстура фона
-    std::shared_ptr<sf::Texture> spikesTexture;     // Текстура спайков
-
 public:
     // Сеттеры
+    void setTexture(TileType type, const std::shared_ptr<sf::Texture>& texture);
+
     void setWallTexture(const std::shared_ptr<sf::Texture>& texture);
     void setBackgroundTexture(const std::shared_ptr<sf::Texture>& texture);
     void setCloudTexture(const std::shared_ptr<sf::Texture>& texture);
@@ -44,5 +49,15 @@ public:
     void draw(sf::RenderWindow& window); // отрисовка
     bool isTileSolid(int x, int y) const; // проверка стенки
     bool isKilling(int x, int y) const;
+private:
+    std::vector<std::vector<Tile>> tiles;           // Двумерный массив плиток
+    int width = 0, height = 0;                      // Размеры уровня
+    float tileSize = 64.0f;                         // Размер плитки (например, 32x32 пикселя)
+    std::shared_ptr<sf::Texture> wallTexture;       // Текстура стены
+    std::shared_ptr<sf::Texture> backgroundTexture; // Текстура фона
+    std::shared_ptr<sf::Texture> cloudsTexture;     // Текстура фона
+    std::shared_ptr<sf::Texture> emptyTexture;      // Текстура фона
+    std::shared_ptr<sf::Texture> spikesTexture;     // Текстура спайков
 
+    std::map<TileType, std::shared_ptr<sf::Texture>> textures;
 };
