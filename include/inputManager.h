@@ -3,6 +3,8 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/System/Vector2.hpp>
 
+#include <iostream>
+
 class InputManager {
 public:
     InputManager() = default;
@@ -17,6 +19,9 @@ public:
         return input;
     }
     
+    bool isShiftPressed() const { 
+        return sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift);
+    }
     // Возвращает true, если нажаты клавиши для прыжка
     bool isJumpPressed() const {
         return sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) ||

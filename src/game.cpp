@@ -1,9 +1,9 @@
 #include "../include/game.h"
+#include "../include/player.h"
+#include "../include/level.h"
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
-#include "../include/player.h"
-#include "../include/level.h"
 #include <iostream>
 #include <vector>
 #include <optional>
@@ -12,8 +12,6 @@
 #include <sstream>
 #include <iomanip>
 
-
-// Конструктор Game: все поля, у которых нет дефолтных конструкторов, инициализируются через список инициализации.
 Game::Game()
   : deathWindowSprite(deathWindowTexture),
     winWindowSprite(winWindowTexture),
@@ -23,9 +21,18 @@ Game::Game()
     player("../assets/ful_anim.png"),
     level(),        
     showDeathScreen(false),
-    font(),            
-    timerText(font, "", 24)
+    font(),
+    timerText(font, "", 24), // Инициализация таймера
+    dashText(font, "", 24)   // Инициализация таймера рывка
+    
 {
+    // Создаем мобов с начальными позициями
+    
+    mobs.emplace_back("../assets/mob2.png", sf::Vector2f(600.f, 320.f), 220.f);  
+    mobs.emplace_back("../assets/mob2.png", sf::Vector2f(600.f, 320.f), 520.f);    
+    mobs.emplace_back("../assets/mob2.png", sf::Vector2f(600.f, 320.f), 320.f); 
+    mobs.emplace_back("../assets/mob1.png", sf::Vector2f(600.f, 320.f), 420.f); 
+
     // Загрузка текстур для уровня
     loadTexture(wallTexture, "../assets/block.png");
     level.setWallTexture(wallTexture);
@@ -36,7 +43,7 @@ Game::Game()
     loadTexture(backgroundTexture, "../assets/background.png");
     level.setBackgroundTexture(backgroundTexture);
 
-    loadTexture(cloudsTexture, "../assets/clouds.png");
+    loadTexture(cloudsTexture, "../assets/phone1.png");
     level.setCloudTexture(cloudsTexture);
 
     loadTexture(spikesTexture, "../assets/spikes.png");
@@ -50,6 +57,12 @@ Game::Game()
     deathWindowSprite = sf::Sprite(deathWindowTexture);
     // Рисуем окно смерти с левого верхнего угла
     deathWindowSprite.setPosition(sf::Vector2f(0.f, 0.f));
+
+    if (!winWindowTexture.loadFromFile("../assets/win_screen.png")) {
+        throw std::runtime_error("failed to load win window texture");
+    }
+    winWindowSprite = sf::Sprite(winWindowTexture);
+    winWindowSprite.setPosition(sf::Vector2f(0.f, 0.f));
 
     // Загрузка данных уровня
     std::vector<std::string> levelData = {
@@ -99,6 +112,12 @@ Game::Game()
     timerText.setFillColor(sf::Color::White);
     timerText.setPosition(sf::Vector2f(10.f, 10.f));
 
+    dashText.setFont(font);
+    dashText.setCharacterSize(24);
+    dashText.setFillColor(sf::Color::Yellow);
+    dashText.setPosition(sf::Vector2f(10.f, 40.f)); // Размещаем под игровым таймером
+    dashText.setString("Dash: 0:00");
+
     // Запускаем игровой таймер: gameTimer отсчитывает время с момента запуска игры
     gameTimer.restart();
 }
@@ -118,15 +137,26 @@ void Game::run() {
         handleEvents();
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
+            player.win();
+        }
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
             player.kill();
+        }
+
+        if (player.get_isWIn()) {
+            showDeathScreen = true;
+            gameTimer.stop();
         }
 
         if (player.get_isDead()) {
             showDeathScreen = true;
+            gameTimer.stop();
         }
 
-        if (!showDeathScreen) {
-            player.update(deltaTime, level);
+        if (!showDeathScreen && !showWinScreen) {
+            update(deltaTime);
+
         }
 
         updateCamera();
@@ -143,7 +173,24 @@ void Game::handleEvents() {
             window.close();
         }
 
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::V)) {
+            showWinScreen = true;
+        }
+
+        if (showWinScreen) {
+            gameTimer.stop();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R)) {
+                player.respawn();
+                showWinScreen = false;
+                gameTimer.restart();  // Перезапускаем таймер при возрождении
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Q)) {
+                window.close();
+            }
+        }     
+
         if (showDeathScreen) {
+            gameTimer.stop();
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R)) {
                 player.respawn();
                 showDeathScreen = false;
@@ -154,6 +201,45 @@ void Game::handleEvents() {
             }
         }
     }
+}
+ 
+void Game::update(float deltaTime) {
+    // Если игра находится в меню смерти или победы, пропускаем обновление
+    if (showDeathScreen || showWinScreen) return;
+
+    // Обновление игрока
+    player.update(deltaTime, level);
+
+    // Обновление мобов
+    for (auto& mob : mobs) {
+        mob.update(deltaTime, player, level);
+    }
+
+    // Проверка столкновения игрока с мобами
+    for (const auto& mob : mobs) {
+        /*
+        sf::Vector2f playerPos = player.getBounds().position();
+        sf::Vector2f playerSize = player.getBounds().size();
+        sf::Vector2f mobPos = mob.getBounds().position();
+        sf::Vector2f mobSize = mob.getBounds().size();
+
+        if (playerPos.x < mobPos.x + mobSize.x &&
+            playerPos.x + playerSize.x > mobPos.x &&
+            playerPos.y < mobPos.y + mobSize.y &&
+            playerPos.y + playerSize.y > mobPos.y) {
+
+            player.kill();
+            showDeathScreen = true;
+            gameTimer.stop();
+        }    
+        */    
+    }
+
+    // Обновляем камеру
+    updateCamera();
+
+    // Обновляем таймеры
+    updateTimer();
 }
 
 void Game::updateCamera() {
@@ -177,14 +263,20 @@ void Game::updateTimer() {
 }
 
 void Game::render() {
+
     window.clear();
 
     // Рисуем фон (облака)
     window.setView(window.getDefaultView());
     window.draw(cloudsSprite);
-
+  
     // Рисуем мир и игрока
     window.setView(camera);
+
+    for (auto& mob : mobs) {
+        mob.draw(window);
+    }  
+
     level.draw(window);
     player.draw(window);
 
@@ -203,6 +295,21 @@ void Game::render() {
     // Рисуем таймер (всегда в левом верхнем углу)
     window.setView(window.getDefaultView());
     window.draw(timerText);
+    window.draw(dashText);  
 
     window.display();
+    updateDashTimer();
 }
+
+void Game::updateDashTimer() {
+    float dashRemaining = player.getDashCooldownRemaining();
+    int seconds = static_cast<int>(dashRemaining);
+    int milliseconds = static_cast<int>((dashRemaining - seconds) * 1000);
+
+    std::stringstream ss;
+    ss << "Dash: " << seconds << ":" 
+       << std::setw(3) << std::setfill('0') << milliseconds;
+    
+    dashText.setString(ss.str());
+}
+

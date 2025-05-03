@@ -108,3 +108,8 @@ void Level::setDimensions(int width, int height) {
     this->height = height;    // сохраняем высоту уровня
     tiles.resize(height);     // изменяем высоту массива плиток
 }
+
+bool Level::isWall(int tileX, int tileY) const {
+    if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) return false;
+    return tiles[tileY][tileX].isSolid;  // Предполагаем, что стены обозначены '1'
+}

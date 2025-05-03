@@ -5,6 +5,9 @@
 
 #include "../include/player.h"
 #include "../include/level.h"
+#include "../include/mob.h"
+
+#include <vector>
 
 enum class GameState{
   Playing,
@@ -18,6 +21,11 @@ public:
   void run();
 
 private:
+  std::vector<Mob> mobs;
+
+  sf::Text dashText;   // Текст для отображения кулдауна рывка
+  void updateDashTimer(); // Метод для обновления таймера рывка
+
   sf::Texture deathWindowTexture;
   sf::Sprite deathWindowSprite;
   bool showDeathScreen = false;

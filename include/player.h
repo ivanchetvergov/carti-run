@@ -29,13 +29,18 @@ public:
 
     sf::Vector2f getPosition() const { return sprite->getPosition(); };
 
+    void win() { isWin = true; };
+    bool get_isWIn(){ return isWin; };
     void kill() { isDead = true; };
-    bool get_isDead() { return isDead; }
+    bool get_isDead() { return isDead; };
     void respawn();
 
     // обновление анимации
     void updateAnimation(float deltaTime);
 
+    float getDashCooldownRemaining() const; // Возвращает оставшееся время кулдауна рывка
+    sf::FloatRect getBounds() const { return sprite->getGlobalBounds(); };
+    
 private:
     // графика
     sf::Texture texture;
@@ -44,9 +49,18 @@ private:
     sf::Vector2f spawnPoint = sf::Vector2f(242.f, 64.f);
 
     bool isDead = false;
+    bool isWin = false;
 
     // ориентация
     bool isFacingRight = true;
+
+    
+    bool isDashing = false;   // Флаг рывка
+    float dashSpeed = 1500.f;  // Скорость рывка
+    float dashTime = 0.12f;    // Длительность рывка в секундах
+    float dashCooldown = 1.25f; // Время перезарядки рывка
+    sf::Clock dashClock;      // Таймер для отслеживания времени рывка
+    sf::Clock cooldownClock;  // Таймер для отслеживания перезарядки
 
     // движение
     float speed = 540.0f;
@@ -83,4 +97,8 @@ private:
     std::unique_ptr<PhysicsModule> physicsModule;
     std::unique_ptr<CollisionModule> collisionModule;
 
+    sf::Texture smokeTexture;
+    std::unique_ptr<sf::Sprite> smoke;
+    bool showSmoke = false;
+    sf::Clock smokeTimer;
 };

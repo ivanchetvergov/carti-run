@@ -10,6 +10,10 @@ Player::Player(const std::string& texturePath) {
         std::cerr << "failed to load player texture from " << texturePath << "\n";
     }
 
+    if (!smokeTexture.loadFromFile("../assets/dash.png")) {
+        throw std::runtime_error("Failed to load smoke texture");
+    }
+
     sprite = std::make_unique<sf::Sprite>(texture);
 
     // начальный кадр
@@ -33,17 +37,21 @@ Player::Player(const std::string& texturePath) {
 }
 
 void Player::update(float deltaTime, const Level& level) {
+    // Если игрок мёртв или победил, прекращаем обновление
+    if (isDead || isWin) return;
 
-    if (isDead) return;
-
+    // Получаем ввод через InputManager
     InputManager inputManager;
     float horizontalInput = inputManager.getHorizontalInput();
+    bool shiftPressed = inputManager.isShiftPressed();
+    bool jumpPressed = inputManager.isJumpPressed();
 
+    // Получаем позицию и размеры игрока
     sf::Vector2f pos = sprite->getPosition();
     sf::Vector2f scale = sprite->getScale();
     sf::Vector2f spriteSize(frameWidth * std::abs(scale.x), frameHeight * std::abs(scale.y));
 
-    // проверка на убийственную плитку
+    // Проверка на убийственную плитку (игрок моментально умирает)
     int tileX = static_cast<int>(pos.x / level.getTileSize());
     int tileY = static_cast<int>(pos.y / level.getTileSize());
     if (level.isKilling(tileX, tileY)) {
@@ -51,19 +59,32 @@ void Player::update(float deltaTime, const Level& level) {
         return;
     }
 
-    // прыжок
-    if (inputManager.isJumpPressed() && isOnGround) {
+    // Обрабатываем прыжок
+    if (jumpPressed && isOnGround) {
         verticalSpeed = physicsModule->getJumpForce();
         isJumping = true;
         isOnGround = false;
     }
 
-    float horizontalSpeed = horizontalInput * speed;
+    // Обрабатываем рывок
+    float currentSpeed = isDashing ? dashSpeed : speed;
+    if (shiftPressed && cooldownClock.getElapsedTime().asSeconds() > dashCooldown) {
+        isDashing = true;
+        dashClock.restart();
+        cooldownClock.restart();
+    }
 
-    // разворот
+    // Ограничиваем время рывка
+    if (isDashing && dashClock.getElapsedTime().asSeconds() > dashTime) {
+        isDashing = false;;
+    }
+
+    float horizontalSpeed = horizontalInput * currentSpeed;
+
+    // Разворачиваем спрайт в зависимости от направления
     float scaleFactorX = 64.f / frameWidth;
     float scaleFactorY = 64.f / frameHeight;
-
+    
     if (horizontalInput > 0.f) {
         sprite->setScale(sf::Vector2f(std::abs(scaleFactorX), scaleFactorY));
         isFacingRight = true;
@@ -72,12 +93,12 @@ void Player::update(float deltaTime, const Level& level) {
         isFacingRight = false;
     }
 
-    // физика
+    // Обновляем физику движения
     sf::Vector2f velocity = physicsModule->integrate(deltaTime, horizontalSpeed, verticalSpeed);
     float candidateX = pos.x + velocity.x * deltaTime;
     float candidateY = pos.y + velocity.y * deltaTime;
 
-    // коллизии по x
+    // Проверяем коллизии по X
     if (horizontalSpeed < 0.f) {
         if (collisionModule->checkLeftCollision(level, candidateX, pos, spriteSize)) {
             candidateX = pos.x;
@@ -90,10 +111,10 @@ void Player::update(float deltaTime, const Level& level) {
         }
     }
 
-    // сброс состояния
+    // Сбрасываем состояние "на земле"
     isOnGround = false;
 
-    // коллизии по y
+    // Проверяем коллизии по Y
     if (verticalSpeed < 0.f) {
         if (collisionModule->checkTopCollision(level, candidateY, pos, spriteSize, verticalSpeed)) {
             verticalSpeed = 0.f;
@@ -104,7 +125,7 @@ void Player::update(float deltaTime, const Level& level) {
         }
     }
 
-    // определение состояния
+    // Определяем состояние игрока
     if (!isOnGround) {
         state = (verticalSpeed > 0.f) ? PlayerState::Falling : PlayerState::Jumping;
     } else {
@@ -115,7 +136,10 @@ void Player::update(float deltaTime, const Level& level) {
         }
     }
 
+    // Обновляем позицию игрока
     sprite->setPosition(sf::Vector2f(candidateX, candidateY));
+
+    // Обновляем анимацию
     updateAnimation(deltaTime);
 }
 
@@ -162,4 +186,13 @@ void Player::respawn() {
     verticalSpeed = 0.f;
     isDead = false;
     isOnGround = false;
+    isWin = false;
 }
+
+float Player::getDashCooldownRemaining() const {
+    float remaining = dashCooldown - cooldownClock.getElapsedTime().asSeconds();
+    return remaining > 0 ? remaining : 0;
+}
+
+
+

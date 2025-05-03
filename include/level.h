@@ -36,6 +36,7 @@ public:
 
     // геттеры
     float getTileSize() const {return tileSize; }    
+    bool isWall(int tileX, int tileY) const;
 
     void loadLevel(const std::vector<std::string>& data); // загрузка из массива
     void draw(sf::RenderWindow& window); // отрисовка
