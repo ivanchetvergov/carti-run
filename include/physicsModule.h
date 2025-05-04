@@ -17,6 +17,9 @@ public:
     float getJumpForce() const {
         return jumpForce;
     }
+    
+    float getGravity() const { return gravity; }
+
 
 private:
     float gravity;

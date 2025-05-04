@@ -1,6 +1,4 @@
 #include "../include/game.h"
-#include "../include/player.h"
-#include "../include/level.h"
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
@@ -22,13 +20,12 @@ Game::Game()
     level(),        
     showDeathScreen(false),
     font(),
-    timerText(font, "", 24), // Инициализация таймера
-    dashText(font, "", 24)   // Инициализация таймера рывка
+    timerText(font, "", 24),    // Инициализация таймера
+    dashText(font, "", 24)      // Инициализация таймера рывка
     
 {
     auto mob1Tex = std::make_shared<sf::Texture>();
     auto mob2Tex = std::make_shared<sf::Texture>();
-
 
     if (!mob1Tex->loadFromFile("../assets/mob1.png")) {
         std::cerr << "failed to load mob1.png\n";
@@ -38,35 +35,46 @@ Game::Game()
         std::cerr << "failed to load mob2.png\n";
     }
     
-    
-    mobs.emplace_back(mob2Tex, sf::Vector2f(500.f, 384.f), 24.f);  
-    mobs.emplace_back(mob2Tex, sf::Vector2f(600.f, 320.f), 360.f);    
-    mobs.emplace_back(mob2Tex, sf::Vector2f(600.f, 320.f), 600.f); 
-    mobs.emplace_back(mob1Tex, sf::Vector2f(600.f, 320.f), 420.f); 
+    mobs.emplace_back(std::make_unique<Mob>(mob2Tex, sf::Vector2f(500.f, 384.f), 24.f)); 
+    mobs.emplace_back(std::make_unique<Mob>(mob1Tex, sf::Vector2f(600.f, 320.f), 240.f));
+    mobs.emplace_back(std::make_unique<Mob>(mob2Tex, sf::Vector2f(600.f, 320.f), 24.f));
+    mobs.emplace_back(std::make_unique<Mob>(mob1Tex, sf::Vector2f(600.f, 320.f), 48.f));
    
-    // Загрузка текстур для уровня
-    loadTexture(wallTexture, "../assets/block.png");
-    level.setWallTexture(wallTexture);
-
-    loadTexture(emptyTexture, "../assets/empty.png");
-    level.setEmptyTexture(emptyTexture);
-
-    loadTexture(backgroundTexture, "../assets/background.png");
-    level.setBackgroundTexture(backgroundTexture);
-
-    loadTexture(cloudsTexture, "../assets/phone1.png");
-    level.setCloudTexture(cloudsTexture);
-
-    loadTexture(spikesTexture, "../assets/spikes.png");
-    level.setSpikeTexture(spikesTexture);
-
+    std::vector<std::pair<TileType, std::string>> texturePaths = {
+        {TileType::Wall, "../assets/block.png"},
+        {TileType::Empty, "../assets/empty.png"},
+        {TileType::Background, "../assets/background.png"},
+        {TileType::Spikes, "../assets/spikes.png"},
+        {TileType::Bouncy, "../assets/bouncy.png"}, 
+        {TileType::Hangable, "../assets/hangable.png"},
+        {TileType::WeaponPickup, "../assets/weapon_orb.png"}
+    };
+    
+    // Загружаем текстуры и проверяем успешность
+    for (const auto& [type, path] : texturePaths) {
+        auto texture = std::make_shared<sf::Texture>();
+        
+        if (!texture->loadFromFile(path)) {
+            std::cerr << "error: " << path << " (tile: " << static_cast<int>(type) << ")\n";
+            continue; 
+        }
+        
+        level.setTexture(type, texture);
+    }
+    
+    // Проверка загруженных текстур перед использованием
+    for (const auto& [type, texture] : level.getAllTextures()) {
+        if (!texture) {
+            std::cerr << "Ошибка: отсутствует текстура для плитки " << static_cast<int>(type) << "\n";
+        }
+    }
+        
     // Загрузка текстуры окна смерти
     if (!deathWindowTexture.loadFromFile("../assets/death_window.png"))
-    {
+    {   
         throw std::runtime_error("failed to load death window texture");
     }
     deathWindowSprite = sf::Sprite(deathWindowTexture);
-    // Рисуем окно смерти с левого верхнего угла
     deathWindowSprite.setPosition(sf::Vector2f(0.f, 0.f));
 
     if (!winWindowTexture.loadFromFile("../assets/win_screen.png")) {
@@ -84,13 +92,13 @@ Game::Game()
         "1000000000110001_________________________",
         "1110000000000011______________11_________",
         "1000000000000001_________________________",
-        "1000111000110001______11_________________",
+        "1000111000#10001______11_________________",
         "1000000000000001_________________________",
         "1001100000000001___!!!!__________________",
         "10000000000000011__1111__1___111__11__11_",
-        "100000000000000_________________________1",
+        "100000000000000*________________________1",
         "111111100000000__________________________",
-        "111111111110000__________________________",
+        "1111111111w0000__________________________",
         "111111111111111___1__1__1__1__1___1____11",
         "______________!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     };
@@ -104,12 +112,19 @@ Game::Game()
     backgroundMusic.setVolume(0.0f);
     backgroundMusic.play();
 
-    // Инициализация облаков: cloudsTexture уже загружен, задаём спрайт облаков
-    cloudsSprite = sf::Sprite(*cloudsTexture);
-    sf::Vector2u windowSize = window.getSize();
-    float scaleX = static_cast<float>(windowSize.x) / cloudsTexture->getSize().x;
-    float scaleY = static_cast<float>(windowSize.y) / cloudsTexture->getSize().y;
-    cloudsSprite.setScale(sf::Vector2f(scaleX, scaleY));
+    auto cloudsTex = std::make_shared<sf::Texture>();
+    if (!cloudsTex->loadFromFile("../assets/phone1.png")) {
+        std::cerr << "err clouds\n";
+    } else {
+        level.setCloudTexture(cloudsTex);
+    }
+
+    cloudsTexture = level.getCloudTexture();
+    if (cloudsTexture) {
+        cloudsSprite = sf::Sprite(*cloudsTexture);
+        sf::Vector2u windowSize = window.getSize();
+        
+    } 
 
     // Загрузка шрифта для текста
     if (!font.openFromFile("../assets/menu_font.ttf"))
@@ -223,29 +238,8 @@ void Game::update(float deltaTime) {
 
     // Обновление мобов
     for (auto& mob : mobs) {
-        mob.update(deltaTime, player, level);
+        mob->update(deltaTime, player, level);
     }
-
-    // Проверка столкновения игрока с мобами
-    for (const auto& mob : mobs) {
-        /*
-        sf::Vector2f playerPos = player.getBounds().position();
-        sf::Vector2f playerSize = player.getBounds().size();
-        sf::Vector2f mobPos = mob.getBounds().position();
-        sf::Vector2f mobSize = mob.getBounds().size();
-
-        if (playerPos.x < mobPos.x + mobSize.x &&
-            playerPos.x + playerSize.x > mobPos.x &&
-            playerPos.y < mobPos.y + mobSize.y &&
-            playerPos.y + playerSize.y > mobPos.y) {
-
-            player.kill();
-            showDeathScreen = true;
-            gameTimer.stop();
-        }    
-        */    
-    }
-
     // Обновляем камеру
     updateCamera();
 
@@ -285,9 +279,9 @@ void Game::render() {
     window.setView(camera);
 
     for (auto& mob : mobs) {
-        mob.draw(window);
-    }  
-
+        mob->draw(window);
+    }
+     
     level.draw(window);
     player.draw(window);
 

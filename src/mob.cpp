@@ -29,13 +29,13 @@ void Mob::update(float deltaTime, Player& player, const Level& level) {
     }
 
     sf::Vector2f mobPos = sprite->getPosition();
-sf::Vector2f playerPos = player.getPosition();
+    sf::Vector2f playerPos = player.getPosition();
 
-float distance = std::sqrt(std::pow(playerPos.x - mobPos.x, 2) + std::pow(playerPos.y - mobPos.y, 2));
+    float distance = std::sqrt(std::pow(playerPos.x - mobPos.x, 2) + std::pow(playerPos.y - mobPos.y, 2));
 
-if (distance < 50.f) { // Радиус столкновения
-    player.kill();
-}    
+    if (distance < 50.f) { // Радиус столкновения
+        player.kill();
+    }    
     
 }
 

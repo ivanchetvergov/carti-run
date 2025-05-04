@@ -21,7 +21,7 @@ public:
   void run();
 
 private:
-  std::vector<Mob> mobs;
+  std::vector<std::unique_ptr<Mob>> mobs;
 
   sf::Text dashText;   // Текст для отображения кулдауна рывка
   void updateDashTimer(); // Метод для обновления таймера рывка
@@ -34,11 +34,8 @@ private:
   sf::Sprite winWindowSprite;
   bool showWinScreen = false;   
 
-  std::shared_ptr<sf::Texture> wallTexture;
-  std::shared_ptr<sf::Texture> emptyTexture;
-  std::shared_ptr<sf::Texture> backgroundTexture;
   std::shared_ptr<sf::Texture> cloudsTexture;
-  std::shared_ptr<sf::Texture> spikesTexture;
+
 
   void loadTexture(std::shared_ptr<sf::Texture>& texture, const std::string& path);
 

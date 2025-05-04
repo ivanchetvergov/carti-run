@@ -37,7 +37,7 @@ Player::Player(const std::string& texturePath) {
     collisionModule = std::make_unique<CollisionModule>();
 }
 
-void Player::update(float deltaTime, const Level& level) {
+void Player::update(float deltaTime, Level& level) {
     // Если игрок мёртв или победил, прекращаем обновление
     if (isDead || isWin) return;
 
@@ -67,6 +67,69 @@ void Player::update(float deltaTime, const Level& level) {
         isOnGround = false;
     }
 
+    float horizontalSpeed = horizontalInput * speed;
+    bool touchingWall = false;
+
+    int tileLeft = static_cast<int>((pos.x - 4) / level.getTileSize());
+    int tileRight = static_cast<int>((pos.x + spriteSize.x + 4) / level.getTileSize());
+    int tileYBottom = static_cast<int>((pos.y + spriteSize.y / 2) / level.getTileSize());
+
+    if (level.isBouncy(tileLeft, tileYBottom)) {
+        wallJumpTimer += deltaTime;
+        touchingWall = true;
+    } else if (level.isBouncy(tileRight, tileYBottom)) {
+        wallJumpTimer += deltaTime;
+        touchingWall = true;
+    } else {
+        wallJumpTimer = 0.f;
+        canWallJump = false;
+    }
+
+    if (touchingWall && wallJumpTimer > 0.024f) {
+        canWallJump = true;
+    }
+
+    if (canWallJump && jumpPressed) {
+        isJumping = true;
+        isOnGround = false;
+        verticalSpeed = -std::abs(physicsModule->getJumpForce() * 1.2f);
+        horizontalSpeed = isFacingRight ? -speed * 0.8f : speed * 0.8f;
+        canWallJump = false;
+    }    
+
+    int left = static_cast<int>(pos.x / level.getTileSize());
+    int right = static_cast<int>((pos.x + spriteSize.x - 1) / level.getTileSize());
+    int top = static_cast<int>((pos.y + 4) / level.getTileSize()); // чуть выше головы
+
+    bool touchingHangable = false;
+    for (int tx = left; tx <= right; ++tx) {
+        if (level.isHangable(tx, top)) {
+            touchingHangable = true;
+            break;
+        }
+    }
+
+    // если игрок в воздухе и падает, и касается hangable-блока
+    if (!isOnGround && verticalSpeed > 0 && touchingHangable) {
+        isHanging = true;
+        verticalSpeed = 25.f; // замедленное падение
+    } else if (!touchingHangable) {
+        isHanging = false;
+    }
+
+    // если игрок висит
+    if (isHanging) {
+        if (inputManager.isDownPressed()) {
+            isHanging = false;
+            verticalSpeed = 700.f; // ускорение вниз при спрыгивании
+        } else if (inputManager.isJumpPressed()) {
+            isHanging = false;
+            isJumping = true;
+            isOnGround = false;
+            verticalSpeed = physicsModule->getJumpForce() * 0.9f;
+        }
+    }   
+
     // Обрабатываем рывок
     float currentSpeed = isDashing ? dashSpeed : speed;
     if (shiftPressed && cooldownClock.getElapsedTime().asSeconds() > dashCooldown) {
@@ -94,7 +157,7 @@ void Player::update(float deltaTime, const Level& level) {
         isDashing = false;
     }
 
-    float horizontalSpeed = horizontalInput * currentSpeed;
+    horizontalSpeed = horizontalInput * currentSpeed;
 
     // Разворачиваем спрайт в зависимости от направления
     float scaleFactorX = 64.f / frameWidth;
@@ -151,6 +214,28 @@ void Player::update(float deltaTime, const Level& level) {
         }
     }
 
+    for (auto& shot : shots) {
+        shot.shape.move(shot.velocity * deltaTime);
+    }
+
+    shots.erase(std::remove_if(shots.begin(), shots.end(), [](const Shot& shot) {
+        return shot.shape.getPosition().x < 0 || shot.shape.getPosition().x > 1920; // или ширина экрана
+    }), shots.end());  
+    
+
+    if (level.isWeaponOrb(tileX, tileY)) {
+        pickupWeapon();
+        level.removeTile(tileX, tileY);
+    }
+
+    if (hasWeaponPickup && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
+        sf::Vector2f shots_pos = sprite->getPosition();
+        shots_pos.y += 34.f;
+        weapon.fire(shots_pos, isFacingRight, shots);
+    } 
+
+    weapon.update(deltaTime);
+
     // Обновляем позицию игрока
     sprite->setPosition(sf::Vector2f(candidateX, candidateY));
 
@@ -199,6 +284,11 @@ void Player::draw(sf::RenderWindow& window) {
     }
 
     window.draw(*sprite);
+
+    for (const auto& shot : shots) {
+        window.draw(shot.shape);
+    }
+    
 }
 
 void Player::respawn() {
@@ -212,6 +302,17 @@ void Player::respawn() {
 float Player::getDashCooldownRemaining() const {
     float remaining = dashCooldown - cooldownClock.getElapsedTime().asSeconds();
     return remaining > 0 ? remaining : 0;
+}
+
+sf::Vector2f Player::getCenter() const {
+    sf::Vector2f position = sprite->getPosition();
+    sf::Vector2u texSize = sprite->getTexture().getSize(); // размеры текстуры
+    sf::Vector2f scale = sprite->getScale();
+
+    float width = static_cast<float>(texSize.x) * scale.x;
+    float height = static_cast<float>(texSize.y) * scale.y;
+
+    return position + sf::Vector2f(width / 2.f, height / 2.f);
 }
 
 

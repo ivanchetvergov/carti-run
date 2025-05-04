@@ -6,16 +6,19 @@
 #include "physicsModule.h"
 #include "collisionModule.h"
 #include "inputManager.h"
+#include "drop.h"
 
 class Level;
 class PhysicsModule;
 class CollisionModule;  
+struct shots;
 
 enum class PlayerState {
     Idle,
     Walking,
     Jumping,
-    Falling
+    Falling, 
+    Crouch
 };
 
 
@@ -24,10 +27,17 @@ public:
     Player();
     Player(const std::string& texturePath);
 
-    void update(float deltaTime, const Level& level);
+    void update(float deltaTime, Level& level);
     void draw(sf::RenderWindow& window);
 
-    sf::Vector2f getPosition() const { return sprite->getPosition(); };
+    sf::Vector2f getPosition() const { return sprite->getPosition(); }
+    sf::Vector2f getCenter() const;
+
+    bool isHanging = false; // Флаг зависания на плитке
+
+    bool isWeapon = false;
+    void pickupWeapon() { hasWeaponPickup = true; }
+    bool hasWeapon() const { return hasWeaponPickup; }
 
     void win() { isWin = true; };
     bool get_isWIn(){ return isWin; };
@@ -53,12 +63,12 @@ private:
 
     // ориентация
     bool isFacingRight = true;
-
+    bool hasWeaponPickup = false;
     
     bool isDashing = false;   // Флаг рывка
-    float dashSpeed = 1500.f;  // Скорость рывка
-    float dashTime = 0.12f;    // Длительность рывка в секундах
-    float dashCooldown = 1.25f; // Время перезарядки рывка
+    float dashSpeed = 2000.f;  // Скорость рывка
+    float dashTime = 0.1f;    // Длительность рывка в секундах
+    float dashCooldown = 1.f; // Время перезарядки рывка
     sf::Clock dashClock;      // Таймер для отслеживания времени рывка
     sf::Clock cooldownClock;  // Таймер для отслеживания перезарядки
 
@@ -71,6 +81,9 @@ private:
     float verticalSpeed = 1000.f;
     bool isJumping = false;
     bool isOnGround = false;
+
+    float wallJumpTimer = 0.f;
+    bool canWallJump = false;
 
     // анимация
     sf::IntRect currentFrame;
@@ -89,7 +102,6 @@ private:
     int fallingFrameX = frameWidth * 9;
     int fallingFrameY = 0; 
 
-
     // текущее состояние
     PlayerState state = PlayerState::Idle;
 
@@ -101,4 +113,7 @@ private:
     std::unique_ptr<sf::Sprite> smoke;
     bool showSmoke = false;
     sf::Clock smokeTimer;
+
+    Weapon weapon;
+    std::vector<Shot> shots; // Храним активные выстрелы
 };

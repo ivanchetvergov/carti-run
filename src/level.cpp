@@ -1,88 +1,70 @@
 #include "../include/level.h"
 
+#include <iostream>
+#include "level.h"
+
 // Устанавливаем текстуру для указанного типа плитки
 void Level::setTexture(TileType type, const std::shared_ptr<sf::Texture>& texture) {
     textures[type] = texture;
 }
 
-/* Set the wall texture. */
-void Level::setWallTexture(const std::shared_ptr<sf::Texture>& texture) {
-    wallTexture = texture; // assign wall texture
-}
-
-/* Set the background texture. */
-void Level::setBackgroundTexture(const std::shared_ptr<sf::Texture>& texture) {
-    backgroundTexture = texture; // assign background texture
+std::shared_ptr<sf::Texture> Level::getTexture(TileType type) const {
+    auto it = textures.find(type);
+    return (it != textures.end()) ? it->second : nullptr;
 }
 
 void Level::setCloudTexture(const std::shared_ptr<sf::Texture>& texture) {
-    cloudsTexture = texture; // assign wall texture
+    cloudsTexture = texture; 
 }
 
-void Level::setSpikeTexture(const std::shared_ptr<sf::Texture>& texture) {
-    spikesTexture = texture; // assign wall texture
-}
-
-void Level::setEmptyTexture(const std::shared_ptr<sf::Texture>& texture) {
-    emptyTexture = texture; // assign wall texture
-}
-
-/* Load the level from an array of strings. */
-// Each string represents a row; '1' is a wall, '0' is a background.
 void Level::loadLevel(const std::vector<std::string>& data) {
     height = data.size();                 // Устанавливаем высоту уровня
-    width = data[0].size();               // Устанавливаем ширину уровня
-    tiles.clear();                        // Очищаем текущие данные плиток
-    tiles.resize(height);                 // Изменяем размер массива плиток
+    width = data.empty() ? 0 : data[0].size();  // Проверка на пустой уровень
+    tiles.clear();
+    tiles.resize(height);
 
     for (int y = 0; y < height; ++y) {
-        tiles[y].reserve(width);          // Резервируем место для строк
+        tiles[y].reserve(width);
         for (int x = 0; x < width; ++x) {
             Tile tile;
             sf::Vector2f pos(static_cast<float>(x * tileSize), static_cast<float>(y * tileSize));
 
-            if (data[y][x] == '0') {
-                // Устанавливаем фон и позицию
-                tile.tileSprite = std::make_unique<sf::Sprite>(*backgroundTexture);
-                tile.tileSprite->setPosition(pos);
-                tile.tileSprite->setScale(sf::Vector2f(
-                    tileSize / backgroundTexture->getSize().x,
-                    tileSize / backgroundTexture->getSize().y
-                ));
-                tile.isSolid = false; // Фон пропускаем
-            } else if (data[y][x] == '1') {
-                // Устанавливаем стену и позицию
-                tile.tileSprite = std::make_unique<sf::Sprite>(*wallTexture);
-                tile.tileSprite->setPosition(pos);
-                tile.tileSprite->setScale(sf::Vector2f(
-                    tileSize / wallTexture->getSize().x,
-                    tileSize / wallTexture->getSize().y
-                ));
-                tile.isSolid = true; // Стена непроходимая
-            } else if (data[y][x] == '_'){
-                tile.tileSprite = std::make_unique<sf::Sprite>(*emptyTexture);
-                tile.tileSprite->setPosition(pos);
-                tile.tileSprite->setScale(sf::Vector2f(
-                    tileSize / wallTexture->getSize().x,
-                    tileSize / wallTexture->getSize().y
-                ));
-                tile.isSolid = false; // Стена непроходимая
-            } else if (data[y][x] == '!'){
-                tile.tileSprite = std::make_unique<sf::Sprite>(*spikesTexture);
-                tile.tileSprite->setPosition(pos);
-                tile.tileSprite->setScale(sf::Vector2f(
-                    tileSize / wallTexture->getSize().x,
-                    tileSize / wallTexture->getSize().y
-                ));
-                tile.isSolid = false; // Стена непроходимая
-                tile.isKilling = true;
+            // Определяем тип плитки
+            TileType tileType = TileType::Empty;
+            switch (data[y][x]) {
+                case '0': tileType = TileType::Background; break;
+                case '1': tileType = TileType::Wall; tile.isSolid = true; break;
+                case '_': tileType = TileType::Empty; break;
+                case '!': tileType = TileType::Spikes; tile.isKilling = true; break;
+                case '*': tileType = TileType::Bouncy; tile.isSolid = true; tile.isBouncy = true; break;
+                case '#': tileType = TileType::Hangable; tile.isSolid = true; tile.isHangable = true; break;
+                case 'w': tileType = TileType::WeaponPickup; tile.isWeapon = true; break;
+                default: tileType = TileType::Empty; break;
             }
 
+            // Назначаем текстуру и создаём спрайт
+            auto texture = getTexture(tileType);
+            if (!texture) {
+                std::cerr << "Ошибка: текстура для типа " << static_cast<int>(tileType) << " отсутствует!\n";
+                continue;  // Пропускаем плитку, если текстура отсутствует
+            }
+            
+            if (texture) {
+                tile.tileSprite = std::make_unique<sf::Sprite>(*texture);
+                tile.tileSprite->setPosition(pos);
+                tile.tileSprite->setScale(sf::Vector2f(
+                    tileSize / texture->getSize().x,
+                    tileSize / texture->getSize().y
+                ));
+            } else {
+                std::cerr << "Ошибка: текстура для типа " << static_cast<int>(tileType) << " отсутствует!\n";
+            }
+
+            tile.type = tileType;
             tiles[y].emplace_back(std::move(tile)); // Добавляем плитку в строку
         }
     }
 }
-
 
 /* Render the level onto the window. */
 void Level::draw(sf::RenderWindow& window) {
@@ -93,7 +75,27 @@ void Level::draw(sf::RenderWindow& window) {
     }
 }
 
-/* Check if the tile at (x, y) is solid (impassable). */
+void Level::setDimensions(int width, int height) {
+    this->width = width;      // сохраняем ширину уровня
+    this->height = height;    // сохраняем высоту уровня
+    tiles.resize(height);     // изменяем высоту массива плиток
+}
+
+bool Level::isWall(int tileX, int tileY) const {
+    if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) return false;
+    return tiles[tileY][tileX].isSolid;  // Предполагаем, что стены обозначены '1'
+}
+
+bool Level::isBouncy(int tileX, int tileY) const {
+    if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) return false;
+    return tiles[tileY][tileX].isBouncy;
+}
+
+bool Level::isHangable(int tileX, int tileY) const {
+    if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) return false;
+    return tiles[tileY][tileX].isHangable;
+}
+
 bool Level::isTileSolid(int x, int y) const {
     if (x >= 0 && x < width && y >= 0 && y < height) {
         return tiles[y][x].isSolid; // return solidity of the tile
@@ -108,13 +110,14 @@ bool Level::isKilling(int x, int y) const {
     return false; // if coordinates are out of bounds, consider it impassable
 }
 
-void Level::setDimensions(int width, int height) {
-    this->width = width;      // сохраняем ширину уровня
-    this->height = height;    // сохраняем высоту уровня
-    tiles.resize(height);     // изменяем высоту массива плиток
+bool Level::isWeaponOrb(int tileX, int tileY) const{
+    if (tileX >= 0 && tileX < width && tileY >= 0 && tileY < height) {
+        return tiles[tileY][tileX].isWeapon; // return solidity of the tile
+    }
+    return false; // if coordinates are out of bounds, consider it impassable
 }
 
-bool Level::isWall(int tileX, int tileY) const {
-    if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) return false;
-    return tiles[tileY][tileX].isSolid;  // Предполагаем, что стены обозначены '1'
+void Level::removeTile(int x, int y){
+    auto texture = getTexture(TileType::Empty);
+    tiles[y][x].tileSprite = std::make_unique<sf::Sprite>(*texture);
 }
